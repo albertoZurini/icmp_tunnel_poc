@@ -173,7 +173,7 @@ int main(int argc, char **argv)
             fprintf(stderr, "[send] ERROR: sendto failed: %s\n", strerror(errno));
             continue;
         }
-        fprintf(stderr, "[send] Sent echo request to %s\n", addr_str);
+        fprintf(stderr, "[send] Sent echo request to %s (seq=%u, payload=%zu bytes)\n", addr_str, (unsigned)seq, mlen);
 
         while (running) {
             memset(buf, 0, sizeof(buf));
@@ -194,7 +194,9 @@ int main(int argc, char **argv)
             if (from.sin_addr.s_addr != addr.sin_addr.s_addr) continue;
 
             if (parse_icmp_payload(buf, (int)n, payload, sizeof(payload)) == 0) {
-                fprintf(stderr, "[send] Received echo reply from %s\n", addr_str);
+                size_t reply_len = strlen(payload);
+                fprintf(stderr, "[send] Received echo reply from %s (packet=%zd bytes, payload=%zu bytes)\n", addr_str, (size_t)n, reply_len);
+                fprintf(stderr, "[send] Reply: %s\n", payload);
                 printf("[send] Reply: %s\n", payload);
             }
             break;

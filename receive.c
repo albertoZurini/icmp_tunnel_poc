@@ -64,23 +64,27 @@ int main(int argc, char **argv)
         }
 
         if ((size_t)retval < ICMP_PAYLOAD_OFFSET) {
+            fprintf(stderr, "[receive] DEBUG: ignoring short packet (%zd bytes, need >= %d)\n", (size_t)retval, ICMP_PAYLOAD_OFFSET);
             continue;
         }
 
         /* Only handle Echo Request (type 8) */
         unsigned char type = (unsigned char)buf[ICMP_HEADER_OFFSET];
         if (type != ICMP_ECHO) {
+            fprintf(stderr, "[receive] DEBUG: ignoring non-echo packet (type=%u)\n", type);
             continue;
         }
 
         if (parse_icmp_payload(buf, (int)retval, payload, sizeof(payload)) != 0) {
-            fprintf(stderr, "[receive] ERROR: failed to parse payload\n");
+            fprintf(stderr, "[receive] ERROR: failed to parse payload (packet len=%zd)\n", (size_t)retval);
             continue;
         }
 
+        size_t payload_len = (size_t)(retval - ICMP_PAYLOAD_OFFSET);
         char addr_str[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &addr.sin_addr, addr_str, sizeof(addr_str));
-        fprintf(stderr, "[receive] Received echo request from %s\n", addr_str);
+        fprintf(stderr, "[receive] Received echo request from %s (packet=%zd bytes, payload=%zu bytes)\n", addr_str, (size_t)retval, payload_len);
+        fprintf(stderr, "[receive] Message: %s\n", payload);
         printf("[receive] Payload: %s\n", payload);
 
         printf("Reply text> ");
@@ -101,6 +105,7 @@ int main(int argc, char **argv)
             continue;
         }
 
+        fprintf(stderr, "[receive] Sending reply (%zu bytes) to %s\n", reply_len, addr_str);
         if (sendto(sockfd, reply_pkt, reply_len, 0, (struct sockaddr *)&addr, len) < 0) {
             fprintf(stderr, "[receive] ERROR: sendto failed: %s\n", strerror(errno));
             continue;
