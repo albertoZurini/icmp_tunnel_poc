@@ -78,11 +78,14 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    int one = 1;
-    if (setsockopt(sockfd, IPPROTO_IP, IP_HDRINCL, &one, sizeof(one)) < 0) {
-        fprintf(stderr, "[send] ERROR: setsockopt IP_HDRINCL failed: %s\n", strerror(errno));
-        close(sockfd);
-        return EXIT_FAILURE;
+    int use_loopback_path = (addr.sin_addr.s_addr == htonl(INADDR_LOOPBACK));
+    if (!use_loopback_path) {
+        int one = 1;
+        if (setsockopt(sockfd, IPPROTO_IP, IP_HDRINCL, &one, sizeof(one)) < 0) {
+            fprintf(stderr, "[send] ERROR: setsockopt IP_HDRINCL failed: %s\n", strerror(errno));
+            close(sockfd);
+            return EXIT_FAILURE;
+        }
     }
 
     /* Timeout so we can re-check running and don't block forever */
@@ -100,7 +103,7 @@ int main(int argc, char **argv)
 
     char addr_str[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &addr.sin_addr, addr_str, sizeof(addr_str));
-    fprintf(stderr, "[send] Sending to %s. Ctrl+C to stop.\n", addr_str);
+    fprintf(stderr, "[send] Sending to %s%s. Ctrl+C to stop.\n", addr_str, use_loopback_path ? " (loopback)" : "");
 
     uint16_t seq = 1;
     char message[ICMP_PAYLOAD_MAX + 1];
@@ -122,32 +125,50 @@ int main(int argc, char **argv)
             mlen--;
         }
 
-        struct icmp_full_packet pckt;
-        memset(&pckt, 0, sizeof(pckt));
+        ssize_t sent;
+        if (use_loopback_path) {
+            /* Loopback: send only ICMP (kernel adds IP header). Avoids EINVAL on some systems. */
+            size_t plen = mlen > ICMP_PAYLOAD_MAX ? ICMP_PAYLOAD_MAX : mlen;
+            struct icmp_echo_block block;
+            memset(&block, 0, sizeof(block));
+            block.hdr.type = ICMP_ECHO;
+            block.hdr.code = 0;
+            block.hdr.id = 0;
+            block.hdr.sequence = htons(seq);
+            if (plen > 0) {
+                memcpy(block.payload, message, plen);
+            }
+            block.hdr.checksum = 0;
+            block.hdr.checksum = checksum(&block.hdr, ICMP_HDR_LEN + (int)plen);
+            sent = sendto(sockfd, &block, ICMP_HDR_LEN + plen, 0, (struct sockaddr *)&addr, sizeof(addr));
+        } else {
+            struct icmp_full_packet pckt;
+            memset(&pckt, 0, sizeof(pckt));
 
-        pckt.ip.ihl_version = 0x45;
-        pckt.ip.tos = 0;
-        pckt.ip.tot_len = htons(sizeof(pckt));
-        pckt.ip.id = 0;
-        pckt.ip.frag_off = 0;
-        pckt.ip.ttl = 255;
-        pckt.ip.protocol = 1; /* IPPROTO_ICMP */
-        pckt.ip.saddr = saddr;
-        pckt.ip.daddr = addr.sin_addr.s_addr;
-        pckt.ip.check = 0;
-        pckt.ip.check = checksum(&pckt.ip, IP_HDR_LEN);
+            pckt.ip.ihl_version = 0x45;
+            pckt.ip.tos = 0;
+            pckt.ip.tot_len = htons(sizeof(pckt));
+            pckt.ip.id = 0;
+            pckt.ip.frag_off = 0;
+            pckt.ip.ttl = 255;
+            pckt.ip.protocol = 1; /* IPPROTO_ICMP */
+            pckt.ip.saddr = saddr;
+            pckt.ip.daddr = addr.sin_addr.s_addr;
+            pckt.ip.check = 0;
+            pckt.ip.check = checksum(&pckt.ip, IP_HDR_LEN);
 
-        pckt.hdr.type = ICMP_ECHO;
-        pckt.hdr.code = 0;
-        pckt.hdr.id = 0;
-        pckt.hdr.sequence = htons(seq);
-        if (mlen > 0) {
-            memcpy(pckt.msg, message, mlen > ICMP_PAYLOAD_MAX ? ICMP_PAYLOAD_MAX : mlen);
+            pckt.hdr.type = ICMP_ECHO;
+            pckt.hdr.code = 0;
+            pckt.hdr.id = 0;
+            pckt.hdr.sequence = htons(seq);
+            if (mlen > 0) {
+                memcpy(pckt.msg, message, mlen > ICMP_PAYLOAD_MAX ? ICMP_PAYLOAD_MAX : mlen);
+            }
+            pckt.hdr.checksum = 0;
+            pckt.hdr.checksum = checksum(&pckt.hdr, ICMP_HDR_LEN + (int)ICMP_PAYLOAD_MAX);
+
+            sent = sendto(sockfd, &pckt, sizeof(pckt), 0, (struct sockaddr *)&addr, sizeof(addr));
         }
-        pckt.hdr.checksum = 0;
-        pckt.hdr.checksum = checksum(&pckt.hdr, ICMP_HDR_LEN + (int)ICMP_PAYLOAD_MAX);
-
-        ssize_t sent = sendto(sockfd, &pckt, sizeof(pckt), 0, (struct sockaddr *)&addr, sizeof(addr));
         if (sent <= 0) {
             fprintf(stderr, "[send] ERROR: sendto failed: %s\n", strerror(errno));
             continue;
