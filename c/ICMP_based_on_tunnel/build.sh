@@ -1,1 +1,0 @@
-gcc ./socket.c -o socket
