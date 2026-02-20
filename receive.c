@@ -35,7 +35,12 @@ int main(int argc, char **argv)
     }
 
     /* Do not set IP_HDRINCL so kernel fills IP header when sending echo reply */
-    signal(SIGINT, on_signal);
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = on_signal;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0; /* no SA_RESTART: let recvfrom/fgets return EINTR on Ctrl+C */
+    sigaction(SIGINT, &sa, NULL);
 
     char buf[1024];
     char payload[ICMP_PAYLOAD_MAX + 1];
@@ -53,7 +58,7 @@ int main(int argc, char **argv)
         ssize_t retval = recvfrom(sockfd, buf, sizeof(buf), 0, (struct sockaddr *)&addr, &len);
 
         if (retval < 0) {
-            if (!running) break;
+            if (errno == EINTR || !running) break;
             fprintf(stderr, "[receive] ERROR: recvfrom failed: %s\n", strerror(errno));
             continue;
         }
@@ -81,7 +86,7 @@ int main(int argc, char **argv)
         printf("Reply text> ");
         fflush(stdout);
         if (fgets(reply_buf, (int)sizeof(reply_buf), stdin) == NULL) {
-            if (!running) break;
+            if (errno == EINTR || !running) break;
             continue;
         }
         /* Trim newline */

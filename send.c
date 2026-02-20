@@ -37,6 +37,37 @@ int main(int argc, char **argv)
     addr.sin_family = hname->h_addrtype;
     addr.sin_addr.s_addr = *(in_addr_t *)hname->h_addr_list[0];
 
+    if (addr.sin_addr.s_addr == 0 || addr.sin_addr.s_addr == INADDR_NONE) {
+        fprintf(stderr, "[send] ERROR: invalid destination (0.0.0.0 or invalid). Use a valid host or IP.\n");
+        return EXIT_FAILURE;
+    }
+
+    /* Determine source IP: for loopback use 127.0.0.1; else discover via route */
+    in_addr_t saddr;
+    if (addr.sin_addr.s_addr == htonl(INADDR_LOOPBACK)) {
+        saddr = htonl(INADDR_LOOPBACK);
+    } else {
+        int fd = socket(AF_INET, SOCK_DGRAM, 0);
+        if (fd >= 0) {
+            struct sockaddr_in connect_addr = addr;
+            connect_addr.sin_port = htons(9);
+            if (connect(fd, (struct sockaddr *)&connect_addr, sizeof(connect_addr)) == 0) {
+                struct sockaddr_in bound;
+                socklen_t boundlen = sizeof(bound);
+                if (getsockname(fd, (struct sockaddr *)&bound, &boundlen) == 0) {
+                    saddr = bound.sin_addr.s_addr;
+                } else {
+                    saddr = INADDR_ANY;
+                }
+            } else {
+                saddr = INADDR_ANY;
+            }
+            close(fd);
+        } else {
+            saddr = INADDR_ANY;
+        }
+    }
+
     int sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
     if (sockfd < 0) {
         if (errno == EPERM) {
@@ -60,7 +91,12 @@ int main(int argc, char **argv)
     tv.tv_usec = 0;
     setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
-    signal(SIGINT, on_signal);
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = on_signal;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0; /* no SA_RESTART: let recvfrom/fgets return EINTR on Ctrl+C */
+    sigaction(SIGINT, &sa, NULL);
 
     char addr_str[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &addr.sin_addr, addr_str, sizeof(addr_str));
@@ -77,7 +113,7 @@ int main(int argc, char **argv)
         printf("Message> ");
         fflush(stdout);
         if (fgets(message, (int)sizeof(message), stdin) == NULL) {
-            if (!running) break;
+            if (errno == EINTR || !running) break;
             continue;
         }
         size_t mlen = strlen(message);
@@ -96,7 +132,7 @@ int main(int argc, char **argv)
         pckt.ip.frag_off = 0;
         pckt.ip.ttl = 255;
         pckt.ip.protocol = 1; /* IPPROTO_ICMP */
-        pckt.ip.saddr = 0;
+        pckt.ip.saddr = saddr;
         pckt.ip.daddr = addr.sin_addr.s_addr;
         pckt.ip.check = 0;
         pckt.ip.check = checksum(&pckt.ip, IP_HDR_LEN);
@@ -123,6 +159,7 @@ int main(int argc, char **argv)
             fromlen = sizeof(from);
             ssize_t n = recvfrom(sockfd, buf, sizeof(buf), 0, (struct sockaddr *)&from, &fromlen);
             if (n < 0) {
+                if (errno == EINTR || !running) break;
                 if (errno == EAGAIN || errno == EWOULDBLOCK) {
                     fprintf(stderr, "[send] No reply (timeout). Try again.\n");
                 } else {
