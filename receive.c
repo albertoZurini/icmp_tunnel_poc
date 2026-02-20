@@ -68,21 +68,34 @@ int main(int argc, char **argv)
             continue;
         }
 
-        /* Only handle Echo Request (type 8) */
         unsigned char type = (unsigned char)buf[ICMP_HEADER_OFFSET];
+        char addr_str[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, &addr.sin_addr, addr_str, sizeof(addr_str));
+
+        if (type == ICMP_ECHOREPLY) {
+            /* Echo Reply (type=0): e.g. kernel reply on loopback; show payload, do not send reply */
+            if (parse_icmp_payload(buf, (int)retval, payload, sizeof(payload)) != 0) {
+                fprintf(stderr, "[receive] DEBUG: echo reply with unparseable payload (%zd bytes)\n", (size_t)retval);
+                continue;
+            }
+            size_t payload_len = (size_t)(retval - ICMP_PAYLOAD_OFFSET);
+            fprintf(stderr, "[receive] Received echo reply from %s (packet=%zd bytes, payload=%zu bytes)\n", addr_str, (size_t)retval, payload_len);
+            fprintf(stderr, "[receive] Reply payload: %s\n", payload);
+            continue;
+        }
+
         if (type != ICMP_ECHO) {
             fprintf(stderr, "[receive] DEBUG: ignoring non-echo packet (type=%u)\n", type);
             continue;
         }
 
+        /* Echo Request (type=8): show message and prompt for reply */
         if (parse_icmp_payload(buf, (int)retval, payload, sizeof(payload)) != 0) {
             fprintf(stderr, "[receive] ERROR: failed to parse payload (packet len=%zd)\n", (size_t)retval);
             continue;
         }
 
         size_t payload_len = (size_t)(retval - ICMP_PAYLOAD_OFFSET);
-        char addr_str[INET_ADDRSTRLEN];
-        inet_ntop(AF_INET, &addr.sin_addr, addr_str, sizeof(addr_str));
         fprintf(stderr, "[receive] Received echo request from %s (packet=%zd bytes, payload=%zu bytes)\n", addr_str, (size_t)retval, payload_len);
         fprintf(stderr, "[receive] Message: %s\n", payload);
         printf("[receive] Payload: %s\n", payload);
