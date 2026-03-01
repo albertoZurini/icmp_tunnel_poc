@@ -97,8 +97,7 @@ int main(int argc, char **argv)
 
         size_t payload_len = (size_t)(retval - ICMP_PAYLOAD_OFFSET);
         fprintf(stderr, "[receive] Received echo request from %s (packet=%zd bytes, payload=%zu bytes)\n", addr_str, (size_t)retval, payload_len);
-        fprintf(stderr, "[receive] Message: %s\n", payload);
-        printf("[receive] Payload: %s\n", payload);
+        printf("[receive] Message: %s\n", payload);
 
         printf("Reply text> ");
         fflush(stdout);

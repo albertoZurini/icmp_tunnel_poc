@@ -196,7 +196,6 @@ int main(int argc, char **argv)
             if (parse_icmp_payload(buf, (int)n, payload, sizeof(payload)) == 0) {
                 size_t reply_len = strlen(payload);
                 fprintf(stderr, "[send] Received echo reply from %s (packet=%zd bytes, payload=%zu bytes)\n", addr_str, (size_t)n, reply_len);
-                fprintf(stderr, "[send] Reply: %s\n", payload);
                 printf("[send] Reply: %s\n", payload);
             }
             break;
