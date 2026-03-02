@@ -1,0 +1,71 @@
+---
+# ────────────────────────────────────────────────────────────────
+# Basic document metadata (shown in title slide / browser tab)
+# ────────────────────────────────────────────────────────────────
+title: "ICMP Tunneling"
+author:
+  - Alberto Zurini
+date: "March 2026"
+institute: "Rollins College Orlando, FL"   # optional
+
+# ────────────────────────────────────────────────────────────────
+# Reveal.js theme & look
+# ────────────────────────────────────────────────────────────────
+theme: white              # black, white, league, beige, solarized, simple, serif, moon, night, blood, etc.
+highlightjs: true         # or false
+highlight-style: vs       # pygments, tango, espresso, zenburn, kate, monokai, haddock, breezedark, vs, etc.
+transition: slide         # none, fade, slide, convex, concave, zoom
+transition-speed: default # fast / slow
+center: true
+controls: true
+progress: true
+showSlideNumber: all      # all / print / speaker
+hash: true                # enables deep linking to slides (#/2/3)
+
+# ────────────────────────────────────────────────────────────────
+# Reveal.js advanced / initialization options
+# (almost all Reveal.initialize({ … }) keys work as -V key=value)
+# ────────────────────────────────────────────────────────────────
+
+margin: 0.04
+minScale: 0.2
+maxScale: 2.0
+
+# Useful for code-heavy talks
+history: true
+overview: true
+fragments: true           # enable fragment/incremental by default
+
+# Plugins (comma-separated if multiple)
+plugins:
+  - reveal.js/plugin/notes/notes
+  - reveal.js/plugin/highlight/highlight
+
+# Speaker notes & PDF export helpers
+pdfMaxPagesPerSlide: 1    # for better print/PDF (1 = one slide per page)
+
+# Custom CSS (applied after theme)
+css:
+  - custom.css
+
+# ────────────────────────────────────────────────────────────────
+# Title slide background (image or color)
+# ────────────────────────────────────────────────────────────────
+# title-slide-attributes:
+#   data-background-image: images/miami-skyline.jpg
+#   data-background-size: cover
+#   data-background-opacity: 0.4
+
+# ────────────────────────────────────────────────────────────────
+# Other useful Pandoc-level settings
+# ────────────────────────────────────────────────────────────────
+incremental: true         # make all bullets appear one-by-one by default
+slide-level: 2            # ## starts a new horizontal slide
+toc: false                # usually false for presentations
+number-sections: false
+
+# If you ever need mathjax / katex config (rare in reveal)
+mathjax: true             # or use katex: true in newer pandoc
+
+# Custom variables (for custom templates or filters)
+my-footer: "Confidential — © 2026 Alberto Zurini"
