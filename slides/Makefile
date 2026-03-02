@@ -25,4 +25,15 @@ serve: all
 	@echo "Starting simple HTTP server at http://localhost:8000"
 	python3 -m http.server --directory output 8000
 
-.PHONY: all clean serve
+# Export Reveal.js deck to PDF (requires Node/npx for decktape; starts a short-lived server)
+PDF_OUT = output/slides.pdf
+pdf: all
+	@echo "Starting temporary server for decktape..."
+	@(cd output && python3 -m http.server 9999 &); \
+	SERVER_PID=$$!; \
+	sleep 2; \
+	npx --yes decktape reveal --fragments http://127.0.0.1:9999/index.html $(PDF_OUT); \
+	EXIT=$$?; kill $$SERVER_PID 2>/dev/null || true; exit $$EXIT
+	@echo "PDF written to $(PDF_OUT)"
+
+.PHONY: all clean serve pdf

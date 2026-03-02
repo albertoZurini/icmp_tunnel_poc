@@ -43,6 +43,7 @@ plugins:
 
 # Speaker notes & PDF export helpers
 pdfMaxPagesPerSlide: 1    # for better print/PDF (1 = one slide per page)
+# Automated PDF: run "make pdf" in slides/ (uses decktape; requires Node/npx)
 
 # Custom CSS (applied after theme)
 css:
