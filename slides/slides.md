@@ -82,3 +82,7 @@ Report the vulnerability **immediately**!
 ## HTTP header tunneling
 
 ![](img/http-headers.png)
+
+## Let's connect!
+
+![](img/github-qr.png)

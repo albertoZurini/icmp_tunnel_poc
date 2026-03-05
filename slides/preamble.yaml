@@ -67,6 +67,3 @@ number-sections: false
 
 # If you ever need mathjax / katex config (rare in reveal)
 mathjax: true             # or use katex: true in newer pandoc
-
-# Custom variables (for custom templates or filters)
-my-footer: "Confidential — © 2026 Alberto Zurini"
